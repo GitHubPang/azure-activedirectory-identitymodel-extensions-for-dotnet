@@ -1399,7 +1399,8 @@ namespace System.IdentityModel.Tokens.Jwt
                 throw LogHelper.LogExceptionMessage(new SecurityTokenException(LogHelper.FormatInvariant(TokenLogMessages.IDX10612)));
 
             var keys = GetContentEncryptionKeys(jwtToken, validationParameters);
-            var decryptionSucceeded = false;
+            bool decryptionSucceeded = false;
+            bool algorithmNotSupportedByCryptoProvider = false;
             byte[] decryptedTokenBytes = null;
 
             // keep track of exceptions thrown, keys that were tried
@@ -1416,6 +1417,7 @@ namespace System.IdentityModel.Tokens.Jwt
 
                 if (!cryptoProviderFactory.IsSupportedAlgorithm(jwtToken.Header.Enc, key))
                 {
+                    algorithmNotSupportedByCryptoProvider = true;
                     LogHelper.LogWarning(TokenLogMessages.IDX10611, jwtToken.Header.Enc, key);
                     continue;
                 }
@@ -1438,6 +1440,9 @@ namespace System.IdentityModel.Tokens.Jwt
 
             if (!decryptionSucceeded && keysAttempted.Length > 0)
                 throw LogHelper.LogExceptionMessage(new SecurityTokenDecryptionFailedException(LogHelper.FormatInvariant(TokenLogMessages.IDX10603, keysAttempted, exceptionStrings, jwtToken.RawData)));
+
+            if (!decryptionSucceeded && algorithmNotSupportedByCryptoProvider)
+                throw LogHelper.LogExceptionMessage(new SecurityTokenDecryptionFailedException(LogHelper.FormatInvariant(TokenLogMessages.IDX10619, jwtToken.Header.Alg, jwtToken.Header.Enc)));
 
             if (!decryptionSucceeded)
                 throw LogHelper.LogExceptionMessage(new SecurityTokenDecryptionFailedException(LogHelper.FormatInvariant(TokenLogMessages.IDX10609, jwtToken.RawData)));
